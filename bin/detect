@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Always accept the Harfang buildpack
+echo "Harfang"
+exit 0
