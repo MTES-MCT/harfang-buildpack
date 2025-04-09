@@ -1,13 +1,13 @@
-# Scalingo SOC buildpack
+# Scalingo Harfang buildpack
 
-> This buildpack aims at installing a [SOC Harfang](https://harfang.io) agent in app on [Scalingo](https://www.scalingo.com) and let you configure it at your convenance.
+> This buildpack aims at installing a [Harfang](https://harfang.io) agent in app on [Scalingo](https://www.scalingo.com) and let you configure it at your convenance.
 
 ## Usage
 
-[Add this buildpack environment variable][1] to your Scalingo application to install the `SOC` app:
+[Add this buildpack environment variable][1] to your Scalingo application to install the `Harfang` agent:
 
 ```shell
-BUILDPACK_URL=https://github.com/MTES-MCT/soc-buildpack
+BUILDPACK_URL=https://github.com/MTES-MCT/harfang-buildpack
 ```
 
 Default version `HARFANG_VERSION` is always `latest` found in hurukai api.
@@ -36,7 +36,7 @@ cp .env.sample .env
 Run an interactive docker scalingo stack [1]:
 
 ```shell
-docker run --name soc -it -v "$(pwd)"/.env:/env/.env -v "$(pwd)":/buildpack scalingo/scalingo-22:latest bash
+docker run --name harfang -it -v "$(pwd)"/.env:/env/.env -v "$(pwd)":/buildpack scalingo/scalingo-22:latest bash
 ```
 
 And test in it step by step in order:
