@@ -1,6 +1,6 @@
 # Scalingo SOC buildpack
 
-> This buildpack aims at installing a [SOC]() agent in app on [Scalingo](https://www.scalingo.com) and let you configure it at your convenance.
+> This buildpack aims at installing a [SOC Harfang](https://harfang.io) agent in app on [Scalingo](https://www.scalingo.com) and let you configure it at your convenance.
 
 ## Usage
 
@@ -10,18 +10,19 @@
 BUILDPACK_URL=https://github.com/MTES-MCT/soc-buildpack
 ```
 
-Default version SOC is `latest` found in github releases, but you can choose another one:
-
-```shell
-scalingo env-set SOC_VERSION=1.0.0
-```
+Default version `HARFANG_VERSION` is always `latest` found in hurukai api.
 
 ## Configuration
 
-In .env set these vars:
+You must set these vars in scalingo app admin console[2]:
 
 ```shell
-cp .env.sample .env
+HURUKAI_HOST=
+HURUKAI_PROTOCOL=https
+HURUKAI_PORT=
+HURUKAI_API_URL=
+HURUKAI_API_TOKEN=
+HURUKAI_HLAB_TOKEN=
 ```
 
 ## Hacking
@@ -32,13 +33,13 @@ Environment variables are set in a `.env` file. You copy the sample one:
 cp .env.sample .env
 ```
 
-Run an interactive docker scalingo stack [2]:
+Run an interactive docker scalingo stack [1]:
 
 ```shell
 docker run --name soc -it -v "$(pwd)"/.env:/env/.env -v "$(pwd)":/buildpack scalingo/scalingo-22:latest bash
 ```
 
-And test in it:
+And test in it step by step in order:
 
 ```shell
 bash buildpack/bin/detect
@@ -47,5 +48,11 @@ bash buildpack/bin/compile /build /cache /env
 bash buildpack/bin/release
 ```
 
+Or all in one:
+
+```shell
+docker build .
+```
+
 [1]: https://doc.scalingo.com/platform/deployment/buildpacks/custom
-[2]: https://doc.scalingo.com/platform/deployment/buildpacks/custom
+[2]: https://doc.scalingo.com/platform/app/environment

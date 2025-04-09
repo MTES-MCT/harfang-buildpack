@@ -5,7 +5,7 @@ GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
 NC='\033[0m'                              # No Color
-CURL="curl -L --retry 15 --retry-delay 2" # retry for up to 30 seconds
+CURL="curl -L"
 
 info() {
   echo -e "${GREEN}       $*${NC}"
@@ -17,6 +17,7 @@ warn() {
 
 err() {
   echo -e "${RED} !!    $*${NC}" >&2
+  exit 1
 }
 
 step() {
@@ -56,67 +57,123 @@ function install_jq() {
   finished
 }
 
-function install_soc() {
-  if [[ -f "${ENV_DIR}/SOC_VERSION" ]]; then
-    SOC_VERSION=$(cat "${ENV_DIR}/SOC_VERSION")
+function curl_with_auth() {
+  local path="$1"
+  local output="$2"
+  local filename="$3"
+  local curl_hurukai
+  if [[ -f "${ENV_DIR}/HURUKAI_API_URL" ]]; then
+  HURUKAI_API_URL=$(cat "${ENV_DIR}/HURUKAI_API_URL")
   else
-    SOC_VERSION=4.7.18
+    err "HURUKAI_API_URL unset or empty, unable to authenticate"
   fi
-  step "Install SOC $SOC_VERSION"
-  local soc_query_url="${SOC_URL}"
+  if [[ -f "${ENV_DIR}/HURUKAI_API_TOKEN" ]]; then
+    HURUKAI_API_TOKEN=$(cat "${ENV_DIR}/HURUKAI_API_TOKEN")
+  else
+    err "HURUKAI_API_TOKEN unset or empty, unable to authenticate"
+  fi
+  if [[ -f "${ENV_DIR}/HURUKAI_HLAB_TOKEN" ]]; then
+    HURUKAI_HLAB_TOKEN=$(cat "${ENV_DIR}/HURUKAI_HLAB_TOKEN")
+  else
+    err "HURUKAI_HLAB_TOKEN unset or empty, unable to authenticate"
+  fi
+  if [[ -z "$filename" ]]; then
+    curl_hurukai="$CURL -b \"hlab_token=$HURUKAI_HLAB_TOKEN\" -H \"Authorization: ${HURUKAI_API_TOKEN}\" -H \"accept: application/json\" -w '%{http_code}' -o $output $HURUKAI_API_URL/$path"
+  else
+    curl_hurukai="$CURL -b \"hlab_token=$HURUKAI_HLAB_TOKEN\" -H \"Authorization: ${HURUKAI_API_TOKEN}\" -o $output $HURUKAI_API_URL/$path?filename=$filename"
+  fi
+  eval "$curl_hurukai"
+}
+
+function fetch_latest_release() {
   local http_code
-  http_code=$($CURL -G -o "$TMP_PATH/soc.json" -w '%{http_code}' -H "accept: application/json" "${soc_query_url}" -H "PRIVATE-TOKEN: $GITLAB_API_KEY" \
-   --data-urlencode "package_version=$SOC_VERSION")
-  
+  local filename="agent_x64.deb"
+  step "Fetches latest version"
+  http_code=$(curl_with_auth "version" "${TMP_PATH}/latest_release.json")
+  local latest_release_version
   if [[ $http_code == 200 ]]; then
-    local soc_dist
-    soc_dist=$(cat "$TMP_PATH/soc.json" | jq '.[] | .binaries | .[] | .id' )
-    soc_dist="${soc_dist%\"}"
-    soc_dist="${soc_dist#\"}"
-    local checksum_url
-    checksum_url=$(cat "$TMP_PATH/soc.json" | jq '.[] | .binaries | .[] | .package.checksum_link' | xargs)
-    local soc_release_name
-    soc_release_name=$(cat "$TMP_PATH/soc.json" | jq '.[] | .release_name')
-    soc_release_name="${soc_release_name%\"}"
-    soc_release_name="${soc_release_name#\"}"
-    local soc_url
-    soc_url=$(cat "$TMP_PATH/soc.json" | jq '.[] | .binaries | .[] | .package.link' | xargs)
+    latest_release_version=$(< "${TMP_PATH}/latest_release.json" jq '.version')
+    latest_release_version="${latest_release_version%\"}"
+    latest_release_version="${latest_release_version#\"}"
+    info "Latest version fetched is $latest_release_version"
+  elif [[ $http_code == 401 ]]; then
+   err "Error fetching latest version with http code: ${http_code}. You should renew hurukai tokens."
   else
-    warn "Adoptium API v3 HTTP STATUS CODE: $http_code"
-    local soc_release_name="jdk-17.0.9%2B99"
-    info "Using by default $soc_release_name"
-    local soc_dist="OpenJDK17U-soc_x64_linux_hotspot_17.0.9_9.tar.gz"
-    local soc_url="${SOC_URL}/package_files/${soc_release_name}/${soc_dist}"
-    local checksum_url="${soc_url}.sha256.txt"
+   err "Error fetching latest version with http code: ${http_code}"
   fi
-  info "Fetching $soc_dist"
-  local dist_filename="${CACHE_DIR}/dist/$soc_dist"
+  echo "$latest_release_version"
+}
+
+function install_agent() {
+  local dist_path="$1"
+  step "Download Harfang Agent version $HARFANG_VERSION"
+  local http_code
+  http_code=$(curl_with_auth "installer" "$TMP_PATH/agent.json")
+  if [[ $http_code == 200 ]]; then
+    local fileDownloaded
+    fileDownloaded=$(< "$TMP_PATH/agent.json" jq '.installers[] | select(.system == "deb64") | .fileDownloaded')
+    fileDownloaded="${fileDownloaded%\"}"
+    fileDownloaded="${fileDownloaded#\"}"
+    local filename
+    filename=$(< "$TMP_PATH/agent.json" jq '.installers[] | select(.system == "deb64") | .filename')
+    filename="${filename%\"}"
+    filename="${filename#\"}"
+    info "filename=$filename"
+    HURUKAI_ENROLLMENT_TOKEN=$(< "$TMP_PATH/agent.json" jq '.preferred_password')
+    HURUKAI_ENROLLMENT_TOKEN="${HURUKAI_ENROLLMENT_TOKEN%\"}"
+    HURUKAI_ENROLLMENT_TOKEN="${HURUKAI_ENROLLMENT_TOKEN#\"}"
+    HURUKAI_KEY=$(< "$TMP_PATH/agent.json" jq '.key')
+    HURUKAI_KEY="${HURUKAI_KEY%\"}"
+    HURUKAI_KEY="${HURUKAI_KEY#\"}"
+    HURUKAI_SRV_SIG_PUB=$(< "$TMP_PATH/agent.json" jq '.rust_key')
+    HURUKAI_SRV_SIG_PUB="${HURUKAI_SRV_SIG_PUB%\"}"
+    HURUKAI_SRV_SIG_PUB="${HURUKAI_SRV_SIG_PUB#\"}"
+  elif [[ $http_code == 401 ]]; then
+   err "Installer files query failed with HTTP STATUS CODE: $http_code. You should renew hurukai tokens."
+  else
+    err "Installer files query failed with HTTP STATUS CODE: $http_code"
+  fi
+  info "downloading $fileDownloaded"
+  local dist_filename="${CACHE_DIR}/dist/$fileDownloaded"
   if [ -f "${dist_filename}" ]; then
-    info "File already downloaded"
+    info "File ${dist_filename} already downloaded"
   else
-    ${CURL} -o "${dist_filename}" "${soc_url}"
+    curl_with_auth "installer/download" "${dist_filename}" "${filename}"
   fi
-  if [ -f "${dist_filename}.sha256" ]; then
-    info "SOC sha256 sum already checked"
+  mv "${dist_filename}" "${dist_path}"
+  if [[ -f "$ENV_DIR/HURUKAI_HOST" ]]; then
+    HURUKAI_HOST=$(cat "$ENV_DIR/HURUKAI_HOST")
   else
-    ${CURL} -o "${dist_filename}.sha256" "${checksum_url}"
-    cd "${CACHE_DIR}/dist" || return
-    sha256sum -c --strict --status "${dist_filename}.sha256"
-    info "SOC sha256 checksum valid"
+    err "HURUKAI_HOST unset or empty"
   fi
-  if [ -d "${BUILD_DIR}/java" ]; then
-    warn "SOC already installed"
+  if [[ -f "$ENV_DIR/HURUKAI_PORT" ]]; then
+    HURUKAI_PORT=$(cat "$ENV_DIR/HURUKAI_PORT")
   else
-    tar xzf "${dist_filename}" -C "${CACHE_DIR}/dist"
-    mv "${CACHE_DIR}/dist/$soc_release_name-soc" "$BUILD_DIR/java"
-    info "SOC archive unzipped to $BUILD_DIR/java"
+    err "HURUKAI_PORT unset or empty"
   fi
-  export PATH=$PATH:"${BUILD_DIR}/java/bin"
-  if [ ! -d "${BUILD_DIR}/.profile.d" ]; then
-    mkdir -p "${BUILD_DIR}/.profile.d"
+  if [[ -f "$ENV_DIR/HURUKAI_PROTOCOL" ]]; then
+    HURUKAI_PROTOCOL=$(cat "$ENV_DIR/HURUKAI_PROTOCOL")
+  else
+    err "HURUKAI_PROTOCOL unset or empty"
   fi
-  touch "${BUILD_DIR}/.profile.d/java.sh"
-  echo "export PATH=$PATH:/app/java/bin" > "${BUILD_DIR}/.profile.d/java.sh"
-  info "$(java -version)"
+  if [[ -z "$HURUKAI_SRV_SIG_PUB" ]]; then
+    err "HURUKAI_SRV_SIG_PUB unset or empty"
+  fi
+  if [[ -z "$HURUKAI_KEY" ]]; then
+    err "HURUKAI_KEY unset or empty"
+  fi
+  if [[ -z "$HURUKAI_ENROLLMENT_TOKEN" ]]; then
+    err "HURUKAI_ENROLLMENT_TOKEN unset or empty"
+  fi
+  apt install systemctl
+  DEBIAN_FRONTEND="noninteractive" \
+  HURUKAI_HOST="$HURUKAI_HOST" \
+  HURUKAI_PORT="$HURUKAI_PORT" \
+  HURUKAI_PROTOCOL="$HURUKAI_PROTOCOL" \
+  HURUKAI_KEY="$HURUKAI_KEY" \
+  HURUKAI_SRV_SIG_PUB="$HURUKAI_SRV_SIG_PUB" \
+  HURUKAI_ENROLLMENT_TOKEN="$HURUKAI_ENROLLMENT_TOKEN" \
+  apt install "${dist_path}/${fileDownloaded}"
+  info "Harfang agent installed"
   finished
 }

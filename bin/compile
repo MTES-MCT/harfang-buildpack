@@ -14,35 +14,26 @@ if [ -n "$BUILDPACK_DEBUG" ]; then
   set -x
 fi
 
-HARFANG_PATH="$BUILD_DIR/harfang"
 TMP_PATH="$BUILD_DIR/tmp"
 mkdir -p "${BUILD_DIR}/bin" "${CACHE_DIR}/dist" "${TMP_PATH}"
 export PATH="$BUILD_DIR/bin:$PATH"
 
-STACK="${STACK:-scalingo-24}"
+STACK="${STACK:-scalingo-22}"
 
-start "Install Harfang"
-
-install_harfang
-
-if [[ -f "$ENV_DIR/HARFANG_VERSION" ]]; then
-  HARFANG_VERSION=$(cat "$ENV_DIR/HARFANG_VERSION")
+start "Install Harfang agent"
+install_jq
+HARFANG_VERSION=$(fetch_latest_release)
+if [ -x /opt/hurukai-agent/bin/hurukai ]; then
+  warn "agent already installed"
 else
-  HARFANG_VERSION="latest"
+  install_agent "${BUILD_DIR}/bin" | indent
 fi
-
-if [[ $HARFANG_VERSION == "latest" ]]; then
-  HARFANG_VERSION=$(fetch_github_latest_release "${TMP_PATH}" "harfang/harfang")
-fi
-
-if [ ! -d "${HARFANG_PATH}" ]; then
-  if [[ -n "${HARFANG_VERSION}" ]]; then
-    fetch_HARFANG_dist "${HARFANG_VERSION}" "${TMP_PATH}" | indent
-    mv "${TMP_PATH}/harfang-${HARFANG_VERSION}" "${HARFANG_PATH}"
-  fi
-else
-  warn "Harfang already installed"
-fi
+step "Add Harfang agent profile"
+mkdir -p $BUILD_DIR/.profile.d
+cat <<EOF >$BUILD_DIR/.profile.d/001_hurukai.sh
+export PATH="/opt/hurukai-agent/bin:\$PATH"
+/opt/hurukai-agent/bin/hurukai --fix
+EOF
 info "Using Harfang version: ${HARFANG_VERSION}" | indent
 finished
 

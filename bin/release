@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 
-echo "---{}"
+cat << EOF
+---
+config_vars:
+  PATH: "/opt/hurukai-agent/bin:/usr/local/bin:/usr/bin:/bin"
+EOF
