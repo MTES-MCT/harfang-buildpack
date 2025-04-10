@@ -7,9 +7,7 @@ BUILD_DIR=${1:-}
 CACHE_DIR=${2:-}
 ENV_DIR=${3:-}
 buildpack="$(cd -P "$(dirname "$0")" && pwd)"
-APT_DIR="${CACHE_DIR}/apt"
-APT_CACHE_DIR="${CACHE_DIR}/apt/cache"
-APT_STATE_DIR="${CACHE_DIR}/apt/state"
+HURUKAI_DIR="${BUILD_DIR}/vendor/hurukai"
 
 source "${buildpack}/common.sh"
 
@@ -18,7 +16,7 @@ if [ -n "$BUILDPACK_DEBUG" ]; then
 fi
 
 TMP_PATH="$BUILD_DIR/tmp"
-mkdir -p "${BUILD_DIR}/bin" "${CACHE_DIR}/dist" "${APT_DIR}" "${APT_CACHE_DIR}" "${APT_STATE_DIR}" "${TMP_PATH}"
+mkdir -p "${BUILD_DIR}/bin" "${CACHE_DIR}/dist" "${HURUKAI_DIR}" "${TMP_PATH}"
 export PATH="$BUILD_DIR/bin:$PATH"
 
 STACK="${STACK:-scalingo-22}"
@@ -26,36 +24,23 @@ STACK="${STACK:-scalingo-22}"
 start "Install Harfang agent"
 install_jq
 HARFANG_VERSION=$(fetch_latest_release)
-if [ -x /opt/hurukai-agent/bin/hurukai ]; then
+if [ -x "${HURUKAI_DIR}/opt/hurukai-agent/bin/hurukai" ]; then
   warn "agent already installed"
 else
-  install_agent "${TMP_PATH}" "${APT_CACHE_DIR}" "${APT_STATE_DIR}" | indent
+  install_agent "${TMP_PATH}" "${HURUKAI_DIR}" | indent
 fi
 step "Add apt Harfang agent profile"
 mkdir -p "$BUILD_DIR/.profile.d"
-RUNTIME_PROFILE_SCRIPT="$BUILD_DIR/.profile.d/000_apt.sh"
+RUNTIME_PROFILE_SCRIPT="$BUILD_DIR/.profile.d/000_hurukai.sh"
 cat <<EOF >"$RUNTIME_PROFILE_SCRIPT"
-export PATH="\$HOME/.apt/usr/bin:\$HOME/.apt/usr/sbin:\$PATH"
-export LD_LIBRARY_PATH="\$HOME/.apt/lib/x86_64-linux-gnu:\$HOME/.apt/usr/lib/x86_64-linux-gnu:\$HOME/.apt/usr/lib/i386-linux-gnu:\$HOME/.apt/lib:\$HOME/.apt/usr/lib:\$LD_LIBRARY_PATH"
-export LIBRARY_PATH="\$HOME/.apt/lib/x86_64-linux-gnu:\$HOME/.apt/usr/lib/x86_64-linux-gnu:\$HOME/.apt/usr/lib/i386-linux-gnu:\$HOME/.apt/lib:\$HOME/.apt/usr/lib:\$LIBRARY_PATH"
-export INCLUDE_PATH="\$HOME/.apt/usr/include:\$HOME/.apt/usr/include/x86_64-linux-gnu:\$INCLUDE_PATH"
+export PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$PATH"
+export LD_LIBRARY_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$LD_LIBRARY_PATH"
+export INCLUDE_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$INCLUDE_PATH"
 export CPATH="\$INCLUDE_PATH"
 export CPPPATH="\$INCLUDE_PATH"
-export PKG_CONFIG_PATH="\$HOME/.apt/usr/lib/x86_64-linux-gnu/pkgconfig:\$HOME/.apt/usr/lib/i386-linux-gnu/pkgconfig:\$HOME/.apt/usr/lib/pkgconfig:\$PKG_CONFIG_PATH"
+\$HOME/vendor/hurukai/opt/hurukai-agent/bin/hurukai --fix
 EOF
 
-export PATH="$BUILD_DIR/.apt/usr/bin:$BUILD_DIR/.apt/usr/sbin:$PATH"
-export LD_LIBRARY_PATH="$BUILD_DIR/.apt/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/lib:$BUILD_DIR/.apt/usr/lib:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="$BUILD_DIR/.apt/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/lib:$BUILD_DIR/.apt/usr/lib:$LIBRARY_PATH"
-export INCLUDE_PATH="$BUILD_DIR/.apt/usr/include:$BUILD_DIR/.apt/usr/include/x86_64-linux-gnu:$INCLUDE_PATH"
-export CPATH="$INCLUDE_PATH"
-export CPPPATH="$INCLUDE_PATH"
-export PKG_CONFIG_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
-
-#give environment to later buildpacks
-step "Exporting environment"
-BUILDPACK_EXPORT_FILE="$BP_DIR/export"
-export | grep -E -e ' (PATH|LD_LIBRARY_PATH|LIBRARY_PATH|INCLUDE_PATH|CPATH|CPPPATH|PKG_CONFIG_PATH)=' > "$BUILDPACK_EXPORT_FILE"
 info "Using Harfang version: ${HARFANG_VERSION}" | indent
 finished
 

@@ -10,6 +10,11 @@
 BUILDPACK_URL=https://github.com/MTES-MCT/harfang-buildpack
 ```
 
+In your root directory app code, add Procfile with:
+```shell
+worker: hurukai
+```
+
 Default version `HARFANG_VERSION` is always `latest` found in hurukai api.
 
 ## Configuration
