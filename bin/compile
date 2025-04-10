@@ -33,9 +33,9 @@ step "Add apt Harfang agent profile"
 mkdir -p "$BUILD_DIR/.profile.d"
 RUNTIME_PROFILE_SCRIPT="$BUILD_DIR/.profile.d/000_hurukai.sh"
 cat <<EOF >"$RUNTIME_PROFILE_SCRIPT"
-export PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$PATH"
-export LD_LIBRARY_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$LD_LIBRARY_PATH"
-export INCLUDE_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$INCLUDE_PATH"
+export PATH="/app/hurukai/opt/hurukai-agent/bin:\$PATH"
+export LD_LIBRARY_PATH="/app/hurukai/opt/hurukai-agent/bin:\$LD_LIBRARY_PATH"
+export INCLUDE_PATH="/app/hurukai/opt/hurukai-agent/bin:\$INCLUDE_PATH"
 export CPATH="\$INCLUDE_PATH"
 export CPPPATH="\$INCLUDE_PATH"
 function hurukai_agent() {
@@ -45,7 +45,7 @@ function hurukai_agent() {
   HURUKAI_KEY="\$HURUKAI_KEY" \
   HURUKAI_SRV_SIG_PUB="\$HURUKAI_SRV_SIG_PUB" \
   HURUKAI_ENROLLMENT_TOKEN="\$HURUKAI_ENROLLMENT_TOKEN" \
-  \$HOME/vendor/hurukai/opt/hurukai-agent/bin/hurukai --hierarchical-root-dir=\$HOME/vendor/hurukai/opt/hurukai-agent
+  /app/hurukai/opt/hurukai-agent/bin/hurukai --hierarchical-root-dir=/app/hurukai/opt/hurukai-agent
 }
 hurukai_agent --fix
 EOF
@@ -54,6 +54,6 @@ info "Using Harfang version: ${HARFANG_VERSION}" | indent
 finished
 
 step "Cleaning up tmp files"
-rm -rf "${TMP_PATH}"
+# rm -rf "${TMP_PATH}"
 
 finished

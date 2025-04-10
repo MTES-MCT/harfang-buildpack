@@ -50,6 +50,8 @@ And test in it step by step in order:
 bash buildpack/bin/detect
 bash buildpack/bin/env.sh /env/.env /env
 bash buildpack/bin/compile /build /cache /env
+mv /build/vendor/hurukai /app
+bash /build/.profile.d/000_hurukai.sh
 bash buildpack/bin/release
 ```
 

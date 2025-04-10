@@ -168,6 +168,40 @@ function install_agent() {
   fi
   info "Extracting deb package ..."
   dpkg -x "${dist_path}/${fileDownloaded}" "${install_path}"
+  info "Intialize agent.ini config"
+  # Initialize agent.ini on first install.
+  if [[ ! -z "${HURUKAI_HOST}" ]] && [[ ! -z "${HURUKAI_PORT}" ]] && [[ ! -z "${HURUKAI_SRV_SIG_PUB}" ]]; then
+      hurukai_config_cmd=()
+
+      [[ ! -z "${HURUKAI_HOST}" ]]                && hurukai_config_cmd+=("--host" "${HURUKAI_HOST}")
+      [[ ! -z "${HURUKAI_PORT}" ]]                && hurukai_config_cmd+=("--port" "${HURUKAI_PORT}")
+      [[ ! -z "${HURUKAI_PROTOCOL}" ]]            && hurukai_config_cmd+=("--protocol" "${HURUKAI_PROTOCOL}")
+      [[ ! -z "${HURUKAI_SRV_SIG_PUB}" ]]         && hurukai_config_cmd+=("--server-signature-public" "${HURUKAI_SRV_SIG_PUB}")
+      [[ ! -z "${HURUKAI_ENROLLMENT_TOKEN}" ]]    && hurukai_config_cmd+=("--enrollment-token" "${HURUKAI_ENROLLMENT_TOKEN}")
+      [[ ! -z "${HURUKAI_VDI_MODE}" ]]            && hurukai_config_cmd+=("--vdi-mode" "${HURUKAI_VDI_MODE}")
+      [[ ! -z "${HURUKAI_VDI_SALT}" ]]            && hurukai_config_cmd+=("--vdi-salt" "${HURUKAI_VDI_SALT}")
+
+      [[ ! -z "${HURUKAI_PROXY_HOST}" ]]                               && hurukai_config_cmd+=("--proxy-host" "${HURUKAI_PROXY_HOST}")
+      [[ ! -z "${HURUKAI_PROXY_PORT}" ]]                               && hurukai_config_cmd+=("--proxy-port" "${HURUKAI_PROXY_PORT}")
+      [[ ! -z "${HURUKAI_PROXY_PROTO}" ]]                              && hurukai_config_cmd+=("--proxy-protocol" "${HURUKAI_PROXY_PROTO}")
+      # Backward compat: if HURUKAI_PROXY_* are unset, fall back to PROXY_*
+      [[ -z "${HURUKAI_PROXY_HOST}" ]]  && [[ ! -z "${PROXY_HOST}" ]]  && hurukai_config_cmd+=("--proxy-host" "${PROXY_HOST}")
+      [[ -z "${HURUKAI_PROXY_PORT}" ]]  && [[ ! -z "${PROXY_PORT}" ]]  && hurukai_config_cmd+=("--proxy-port" "${PROXY_PORT}")
+      [[ -z "${HURUKAI_PROXY_PROTO}" ]] && [[ ! -z "${PROXY_PROTO}" ]] && hurukai_config_cmd+=("--proxy-protocol" "${PROXY_PROTO}")
+      # Backward compat: if HURUKAI_ENROLLMENT_TOKEN is unset, fall back to HURUKAI_PASSWORD
+      [[ -z "${HURUKAI_ENROLLMENT_TOKEN}" ]] && [[ ! -z "${HURUKAI_PASSWORD}" ]] && hurukai_config_cmd+=("--enrollment-token" "${HURUKAI_PASSWORD}")
+
+      hurukai_config_cmd+=("--additional-info" "${HURUKAI_ADDITIONAL_INFO1}")
+      hurukai_config_cmd+=("--additional-info" "${HURUKAI_ADDITIONAL_INFO2}")
+      hurukai_config_cmd+=("--additional-info" "${HURUKAI_ADDITIONAL_INFO3}")
+      hurukai_config_cmd+=("--additional-info" "${HURUKAI_ADDITIONAL_INFO4}")
+
+      "${install_path}/opt/hurukai-agent/bin/hurukai" --hierarchical-root-dir="${install_path}/opt/hurukai-agent" --create-config  --update-method=deb "${hurukai_config_cmd[@]}" &> /dev/null || (
+          echo "    > Warning: failed to write the agent's configuration." > /dev/stderr
+          echo "    > See the agent's log in \"\${install_path}/opt/hurukai-agent/logs/\" for more information." > /dev/stderr
+          return
+      )
+  fi
   info "Harfang agent installed"
   finished
 }
