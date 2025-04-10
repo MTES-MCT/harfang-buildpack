@@ -26,7 +26,7 @@ HARFANG_VERSION=$(fetch_latest_release)
 if [ -x /opt/hurukai-agent/bin/hurukai ]; then
   warn "agent already installed"
 else
-  install_agent "${BUILD_DIR}/bin" | indent
+  install_agent "${TMP_PATH}" | indent
 fi
 step "Add Harfang agent profile"
 mkdir -p $BUILD_DIR/.profile.d
