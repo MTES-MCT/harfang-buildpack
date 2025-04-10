@@ -166,14 +166,7 @@ function install_agent() {
   if [[ -z "$HURUKAI_ENROLLMENT_TOKEN" ]]; then
     err "HURUKAI_ENROLLMENT_TOKEN unset or empty"
   fi
-  info "Updating APT package index"
-  DEBIAN_FRONTEND="noninteractive" \
-  HURUKAI_HOST="$HURUKAI_HOST" \
-  HURUKAI_PORT="$HURUKAI_PORT" \
-  HURUKAI_PROTOCOL="$HURUKAI_PROTOCOL" \
-  HURUKAI_KEY="$HURUKAI_KEY" \
-  HURUKAI_SRV_SIG_PUB="$HURUKAI_SRV_SIG_PUB" \
-  HURUKAI_ENROLLMENT_TOKEN="$HURUKAI_ENROLLMENT_TOKEN" \
+  info "Extracting deb package ..."
   dpkg -x "${dist_path}/${fileDownloaded}" "${install_path}"
   info "Harfang agent installed"
   finished

@@ -38,7 +38,16 @@ export LD_LIBRARY_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$LD_LIBRARY
 export INCLUDE_PATH="\$HOME/vendor/hurukai/opt/hurukai-agent/bin:\$INCLUDE_PATH"
 export CPATH="\$INCLUDE_PATH"
 export CPPPATH="\$INCLUDE_PATH"
-\$HOME/vendor/hurukai/opt/hurukai-agent/bin/hurukai --fix
+function hurukai_agent() {
+  HURUKAI_HOST="$HURUKAI_HOST" \
+  HURUKAI_PORT="$HURUKAI_PORT" \
+  HURUKAI_PROTOCOL="$HURUKAI_PROTOCOL" \
+  HURUKAI_KEY="$HURUKAI_KEY" \
+  HURUKAI_SRV_SIG_PUB="$HURUKAI_SRV_SIG_PUB" \
+  HURUKAI_ENROLLMENT_TOKEN="$HURUKAI_ENROLLMENT_TOKEN" \
+  \$HOME/vendor/hurukai/opt/hurukai-agent/bin/hurukai --hierarchical-root-dir=\$HOME/vendor/hurukai/opt/hurukai-agent
+}
+hurukai_agent --fix
 EOF
 
 info "Using Harfang version: ${HARFANG_VERSION}" | indent
