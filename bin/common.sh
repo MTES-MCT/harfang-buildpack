@@ -106,6 +106,8 @@ function fetch_latest_release() {
 
 function install_agent() {
   local dist_path="$1"
+  local apt_cache_dir="$2"
+  local apt_state_dir="$3"
   step "Download Harfang Agent version $HARFANG_VERSION"
   local http_code
   http_code=$(curl_with_auth "installer" "$TMP_PATH/agent.json")
@@ -165,7 +167,9 @@ function install_agent() {
   if [[ -z "$HURUKAI_ENROLLMENT_TOKEN" ]]; then
     err "HURUKAI_ENROLLMENT_TOKEN unset or empty"
   fi
-  apt install systemctl
+  APT_OPTIONS=("-o" "debug::nolocking=true" "-o" "dir::cache=$apt_cache_dir" "-o" "dir::state=$apt_state_dir")
+  info "Updating APT package index"
+  apt-get "${APT_OPTIONS[@]}" update 2>&1 | indent
   DEBIAN_FRONTEND="noninteractive" \
   HURUKAI_HOST="$HURUKAI_HOST" \
   HURUKAI_PORT="$HURUKAI_PORT" \
@@ -173,7 +177,7 @@ function install_agent() {
   HURUKAI_KEY="$HURUKAI_KEY" \
   HURUKAI_SRV_SIG_PUB="$HURUKAI_SRV_SIG_PUB" \
   HURUKAI_ENROLLMENT_TOKEN="$HURUKAI_ENROLLMENT_TOKEN" \
-  apt install "${dist_path}/${fileDownloaded}"
+  apt-get "${APT_OPTIONS[@]}" install -y --reinstall systemctl "${dist_path}/${fileDownloaded}"
   info "Harfang agent installed"
   finished
 }
